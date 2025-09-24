@@ -200,7 +200,12 @@ drop first last
 exit 
 
 
-
+*** CHARLS cleaning - github
+cd "/Users/ynbsztl/Library/CloudStorage/OneDrive-Personal/charls_data/Dofiles"
+git add .
+git status
+git commit -m `version_1.1_test_commit'
+git push
 
 
 
