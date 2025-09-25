@@ -165,10 +165,8 @@ global wave_5_famtran		"`inputw5'/Family_Transfer"
 *solar to lunar date conversion Mata file
 global lunar2solar "`lunar2solar'/lunar2solar.mmat"
 
-
-
 /*==================================================
-              1: regular data selection
+              1: Demographic Background
 ==================================================*/
 **# *----------1.1: Wave 2011
 
@@ -181,9 +179,6 @@ g first = .
 replace householdID = householdID + "0"
 replace ID = householdID + substr(ID,-2,2)
 
-
-
-
 **# Clone variables
 
 clonevar IDind = ID
@@ -195,28 +190,14 @@ clonevar calender_type = ba003
 clonevar age = ba004
 clonevar birth_place = bb001
 
-
-
-
-
-
-
 **# Generate variables
 g year = 2011
-
-
 
 g last = .
 keep first-last
 drop first last
 
 save `wave_1_demog'
-
-
-
-
-
-
 
 **# *----------1.2: Wave 2011
 
@@ -241,19 +222,92 @@ keep first-last
 drop first last
 save `wave_2_demog'
 
+**# *----------1.3: Wave 2015
+
+use $wave_3_demog, clear
+tempfile wave_3_demog
+g first = . 
+
+clonevar IDind = ID
+clonevar birth_year = ba002_1
+clonevar birth_month = ba002_2
+clonevar birth_day = ba002_3
+clonevar calender_type = ba003
+clonevar birth_place = bb001
+
+g year = 2015
+
+
+g last = .
+keep first-last
+drop first last
+save `wave_3_demog'
+
+
+**# *----------1.4: Wave 2018
+
+use $wave_4_demog, clear
+tempfile wave_4_demog
+g first = . 
+
+clonevar IDind = ID
+clonevar chinese_zodiac = ba001 
+clonevar birth_year = ba002_1
+clonevar birth_month = ba002_2
+clonevar birth_day = ba002_3
+clonevar calender_type = ba003
+clonevar birth_place = bb001
+
+g year = 2018
+
+
+g last = .
+keep first-last
+drop first last
+save `wave_4_demog'
+
+**# *----------1.5: Wave 2020
+
+use $wave_5_demog, clear
+tempfile wave_5_demog
+g first = . 
+
+clonevar IDind = ID
+clonevar chinese_zodiac = ba001 
+clonevar birth_year = zrbirthyear
+clonevar birth_month = ba003_2
+clonevar birth_day = ba003_3
 
 
 
+g year = 2020
 
+
+g last = .
+keep first-last
+drop first last
+save `wave_5_demog'
 
 
 **# *----------1.7: Merge all 
 use `wave_1_demog',clear
 append using `wave_2_demog'
+append using `wave_3_demog'
+append using `wave_4_demog'
+append using `wave_5_demog'
 
 
 
-duplicates report IDind
+
+
+
+**# *----------2.0: Cleaning Demographic Background
+**# *----------2.1: Luner to Solar birth date
+
+
+test
+
+
 
 exit 
 
@@ -262,7 +316,7 @@ exit
 cd "/Users/ynbsztl/Library/CloudStorage/OneDrive-Personal/charls_data/Dofiles"
 git add .
 git status
-git commit -m 'version_1.2_IDind'
+git commit -m 'version_1.3_test'
 git push
 
 
