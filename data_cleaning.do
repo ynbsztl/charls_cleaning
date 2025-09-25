@@ -168,10 +168,60 @@ global lunar2solar "`lunar2solar'/lunar2solar.mmat"
 
 
 /*==================================================
-              1: Wave 2011
+              1: regular data selection
 ==================================================*/
-use $wave_1_demog, clear
+**# *----------1.1: Wave 2011
 
+use $wave_1_demog, clear
+tempfile wave_1_demog
+
+g first = . 
+
+**# Cleaning variables
+replace householdID = householdID + "0"
+replace ID = householdID + substr(ID,-2,2)
+
+
+
+
+**# Clone variables
+
+clonevar IDind = ID
+clonevar chinese_zodiac = ba001 
+clonevar birth_year = ba002_1
+clonevar birth_month = ba002_2
+clonevar birth_day = ba002_3
+clonevar calender_type = ba003
+clonevar age = ba004
+clonevar birth_place = bb001
+
+
+
+
+
+
+
+**# Generate variables
+g year = 2011
+
+
+
+g last = .
+keep first-last
+drop first last
+
+save `wave_1_demog'
+
+
+
+
+
+
+
+**# *----------1.2: Wave 2011
+
+use $wave_2_demog, clear
+tempfile wave_2_demog
 g first = . 
 
 clonevar IDind = ID
@@ -181,21 +231,29 @@ clonevar birth_month = ba002_2
 clonevar birth_day = ba002_3
 clonevar calender_type = ba003
 clonevar age = ba004
+clonevar birth_place = bb001
 
-
-
-
-
-
-
-
-
+g year = 2013
 
 
 g last = .
 keep first-last
 drop first last
+save `wave_2_demog'
 
+
+
+
+
+
+
+**# *----------1.7: Merge all 
+use `wave_1_demog',clear
+append using `wave_2_demog'
+
+
+
+duplicates report IDind
 
 exit 
 
@@ -204,7 +262,7 @@ exit
 cd "/Users/ynbsztl/Library/CloudStorage/OneDrive-Personal/charls_data/Dofiles"
 git add .
 git status
-git commit -m `version_1.1_test_commit'
+git commit -m 'version_1.2_IDind'
 git push
 
 
