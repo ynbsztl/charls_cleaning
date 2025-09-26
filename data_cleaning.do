@@ -34,7 +34,7 @@ local inputw4 "$main/Raw_data/charls_2018"
 local inputw5 "$main/Raw_data/charls_2020"
 local lunar2solar "$main/Raw_data/lunar2solar"
 local output "$main/output_dataset"
-global dofiles "$main/Dofiles"
+global dofile "$main/Dofiles"
 
 ***define files locations
 ***respondent level file
@@ -166,11 +166,6 @@ global wave_5_famtran		"`inputw5'/Family_Transfer"
 *solar to lunar date conversion Mata file
 global lunar2solar "`lunar2solar'/lunar2solar.mmat"
 
-
-**# Programs defined
-do "$dofiles/programs.do"
-
-
 /*==================================================
               1: Demographic Background
 ==================================================*/
@@ -178,6 +173,7 @@ do "$dofiles/programs.do"
 **# *----------1.1: Wave 2011
 *********************************************************************
 
+do "$dofile/programs.do"
 
 use $wave_1_demog, clear
 tempfile wave_1_demog
@@ -189,97 +185,35 @@ replace householdID = householdID + "0"
 replace ID = householdID + substr(ID,-2,2)
 
 
-**************************************
-***Birth date: Year, Month, and Day***
-**************************************
-
-***merge with weight file
-local demo_w1_weight iyear 
-merge 1:1 ID using "$wave_1_weight", keepusing(`demo_w1_weight') nolabel
-drop if _merge ==2
-drop _merge
-
-***Birth date
-*set wave number
-local wv=1
-
-***In wave 1
-gen inw1=1
-label variable inw1 "inw1:In wave 1" 
-label values inw1 yesno
-
-***in Wave 1 (update)
-replace inw1 = 0 if inw1 ==.
-tab inw1
-
-***Interview year
-destring(iyear), gen(r`wv'iwy) 
-replace r`wv'iwy=. if inw`wv'==0
-label variable r`wv'iwy  "r`wv'iwy:w`wv' r year of interview"
-
-gen byear_l = ba002_1 if inrange(ba002_1,1900,2012) & ba003 == 2
-
-gen bmonth_l = ba002_2 if inrange(ba002_2,1,12) & ba003 == 2
-
-gen bday_l = ba002_3 if inrange(ba002_3,1,31) & ba003 == 2
-
-gen bdate_l = mdy(bmonth_l,bday_l,byear_l)
-gen bdate_l2 = string(bdate_l,"%tdCYND")
-
-lunar2solar bdate_l2, matfile($lunar2solar) gen(bdate_s)
-
-gen bdate_s2 = date(bdate_s,"YMD")
-gen byear_s = year(bdate_s2)
-gen bmonth_s = month(bdate_s2)
-gen bday_s = day(bdate_s2)
-
-***Birth year
-gen r`wv'byear =.
-missing_c_w1 ba002_1 ba002_2 ba002_3 ba003, result(r`wv'byear) wave(`wv')
-replace r`wv'byear = .i if byear_s > r`wv'iwy-1 & inrange(byear_s,1900,2012) & ba003 == 2
-replace r`wv'byear = .i if ba002_1 > r`wv'iwy-1 & inrange(ba002_1,1900,2012) & ba003 == 1
-replace r`wv'byear = .x if ((ba002_2 == 0 | inlist(ba002_2,.d,.r)) | (ba002_3 == 0 | inlist(ba002_3,.d,.r)) | !mi(bdate_l2)) & ba003 == 2 & mi(bdate_s)
-replace r`wv'byear = byear_s if inrange(byear_s,1900,r`wv'iwy-1) & ba003 == 2
-replace r`wv'byear = ba002_1 if inrange(ba002_1,1900,r`wv'iwy-1) & ba003 == 1
-
-***Birth month
-gen r`wv'bmonth =.
-missing_c_w1 ba002_2 ba002_3 ba003, result(r`wv'bmonth) wave(`wv')
-replace r`wv'bmonth = .x if ((ba002_2 == 0 | inlist(ba002_2,.d,.r)) | (ba002_3 == 0 | inlist(ba002_3,.d,.r)) | !mi(bdate_l2)) & ba003 == 2 & mi(bdate_s)
-replace r`wv'bmonth = .d if ba002_2 == 0 & ba003 == 1
-replace r`wv'bmonth = bmonth_s if inrange(bmonth_s,1,12) & ba003 == 2
-replace r`wv'bmonth = ba002_2 if inrange(ba002_2,1,12) & ba003 == 1
-
-***Birth day
-gen r`wv'bday =.
-missing_c_w1 ba002_2 ba002_3 ba003, result(r`wv'bday) wave(`wv')
-replace r`wv'bday = .x if ((ba002_2 == 0 | inlist(ba002_2,.d,.r)) | (ba002_3 == 0 | inlist(ba002_3,.d,.r)) | !mi(bdate_l2)) & ba003 == 2 & mi(bdate_s)
-replace r`wv'bday = .d if ba002_3 == 0 & ba003 == 1
-replace r`wv'bday = bday_s if inrange(bday_s,1,31) & ba003 == 2
-replace r`wv'bday = ba002_3 if inrange(ba002_3,1,31) & ba003 == 1
-
-drop byear_l bmonth_l bday_l bdate_l bdate_l2 bdate_s bdate_s2 byear_s bmonth_s bday_s
-
-***Birth date, lunar or solar
-gen r`wv'bdatels =.
-missing_c_w1 ba003, result(r`wv'bdatels) wave(`wv')
-replace r`wv'bdatels = 1 if ba003 == 1
-replace r`wv'bdatels = 2 if ba003 == 2
-label values r`wv'bdatels lsdate
-
-rename r1byear birth_year
-rename r1bmonth birth_month
-rename r1bday birth_day
-
-drop r1iwy inw1 r1bdatels iyear
-
-*******************
-**# Clone variables
-*******************
-clonevar IDind = ID
-clonevar chinese_zodiac = ba001
-
+***************************************
+**# Birth date: Year, Month, and Day***
+***************************************
 clonevar calender_type = ba003
+
+gen str8 birth_date_l = string(ba002_1,"%04.0f") + ///
+                      string(ba002_2,"%02.0f") + ///
+                      string(ba002_3,"%02.0f")
+
+g xx = birth_date_l if calender_type == 1
+replace birth_date_l = "" if calender_type == 1
+
+lunar2solar birth_date, leap matfile($lunar2solar) gen(birth_date_solar)
+replace birth_date_solar = xx if missing(birth_date_solar)
+drop xx birth_date_l calender_type
+
+gen birth_year  = real(substr(birth_date_solar, 1, 4))
+gen birth_month = real(substr(birth_date_solar, 5, 2))
+gen birth_day   = real(substr(birth_date_solar, 7, 2))
+
+foreach i in birth_month birth_day{
+	replace `i' = . if `i' == 0 
+}
+
+***************************************
+**# Clone variables
+***************************************
+clonevar IDind = ID
+clonevar chinese_zodiac = ba001 
 clonevar age = ba004
 clonevar birth_place = bb001
 
@@ -300,78 +234,37 @@ use $wave_2_demog, clear
 tempfile wave_2_demog
 g first = . 
 
+***************************************
+**# Birth date: Year, Month, and Day***
+***************************************
+clonevar calender_type = ba003
 
+gen str8 birth_date_l = string(ba002_1,"%04.0f") + ///
+                      string(ba002_2,"%02.0f") + ///
+                      string(ba002_3,"%02.0f")
 
-**************************************
-***Birth date: Year, Month, and Day***
-**************************************
-***Birth date
-gen byear_l = ba002_1 if inrange(ba002_1,1900,2014) & ba003 == 2
-replace byear_l = 1934 if ID == "094004103001" // *change one birth year after checking father bdaydro
+g xx = birth_date_l if calender_type == 1
+replace birth_date_l = "" if calender_type == 1
 
-gen bmonth_l = ba002_2 if inrange(ba002_2,1,12) & ba003 == 2
+lunar2solar birth_date, leap matfile($lunar2solar) gen(birth_date_solar)
+replace birth_date_solar = xx if missing(birth_date_solar)
+drop xx birth_date_l calender_type
 
-gen bday_l = ba002_3 if inrange(ba002_3,1,31) & ba003 == 2
+gen birth_year  = real(substr(birth_date_solar, 1, 4))
+gen birth_month = real(substr(birth_date_solar, 5, 2))
+gen birth_day   = real(substr(birth_date_solar, 7, 2))
 
-gen bdate_l = mdy(bmonth_l,bday_l,byear_l)
-gen bdate_l2 = string(bdate_l,"%tdCYND")
-
-lunar2solar bdate_l2, matfile($lunar2solar) gen(bdate_s)
-
-gen bdate_s2 = date(bdate_s,"YMD")
-gen byear_s = year(bdate_s2)
-gen bmonth_s = month(bdate_s2)
-gen bday_s = day(bdate_s2)
-
-***Respondent Birth Year
-gen r`wv'byear =.
-missing_c_w2 ba002_1 ba002_2 ba002_3 ba003, result(r`wv'byear) wave(`wv')
-replace r`wv'byear = .i if byear_s > r`wv'iwy-1 & inrange(byear_s,1900,2014) & ba003 == 2
-replace r`wv'byear = .i if ba002_1 > r`wv'iwy-1 & inrange(ba002_1,1900,2014) & ba003 == 1
-replace r`wv'byear = .x if ((ba002_2 == 0 | inlist(ba002_2,.d,.r)) | (ba002_3 == 0 | inlist(ba002_3,.d,.r)) | !mi(bdate_l2)) & ba003 == 2 & mi(bdate_s)
-replace r`wv'byear = byear_s if inrange(byear_s,1900,r`wv'iwy-1) & ba003 == 2
-replace r`wv'byear = ba002_1 if inrange(ba002_1,1900,r`wv'iwy-1) & ba003 == 1
-
-***Respondent Birth Month
-gen r`wv'bmonth =.
-missing_c_w2 ba002_2 ba002_3 ba003, result(r`wv'bmonth) wave(`wv')
-replace r`wv'bmonth = .x if ((ba002_2 == 0 | inlist(ba002_2,.d,.r)) | (ba002_3 == 0 | inlist(ba002_3,.d,.r)) | !mi(bdate_l2)) & ba003 == 2 & mi(bdate_s)
-replace r`wv'bmonth = .d if ba002_2 == 0 & ba003 == 1
-replace r`wv'bmonth = bmonth_s if inrange(bmonth_s,1,12) & ba003 == 2
-replace r`wv'bmonth = ba002_2 if inrange(ba002_2,1,12) & ba003 == 1
-
-***Respondent Birth Day 
-gen r`wv'bday =.
-missing_c_w2 ba002_2 ba002_3 ba003, result(r`wv'bday) wave(`wv')
-replace r`wv'bday = .x if ((ba002_2 == 0 | inlist(ba002_2,.d,.r)) | (ba002_3 == 0 | inlist(ba002_3,.d,.r)) | !mi(bdate_l2)) & ba003 == 2 & mi(bdate_s)
-replace r`wv'bday = .d if ba002_3 == 0 & ba003 == 1
-replace r`wv'bday = bday_s if inrange(bday_s,1,31) & ba003 == 2
-replace r`wv'bday = ba002_3 if inrange(ba002_3,1,31) & ba003 == 1
-
-drop byear_l bmonth_l bday_l bdate_l bdate_l2 bdate_s bdate_s2 byear_s bmonth_s bday_s
-
-***Respondent Birth Date Flag
-gen r`wv'fbdate = 1 if ba001_w2_1 == 2
-
-***Birth date, lunar or solar
-gen r`wv'bdatels =.
-missing_c_w2 ba003, result(r`wv'bdatels) wave(`wv')
-replace r`wv'bdatels = 1 if ba003 == 1
-replace r`wv'bdatels = 2 if ba003 == 2
-label values r`wv'bdatels lsdate
+foreach i in birth_month birth_day{
+	replace `i' = . if `i' == 0 
+}
 
 
 
-
-*******************
+***************************************
 **# Clone variables
-*******************
+***************************************
 clonevar IDind = ID
 clonevar chinese_zodiac = ba001 
-clonevar birth_year = ba002_1
-clonevar birth_month = ba002_2
-clonevar birth_day = ba002_3
-clonevar calender_type = ba003
 clonevar age = ba004
 clonevar birth_place = bb001
 
@@ -383,20 +276,46 @@ keep first-last
 drop first last
 save `wave_2_demog'
 
-exit
 
-
+*********************************************************************
 **# *----------1.3: Wave 2015
+*********************************************************************
+
 
 use $wave_3_demog, clear
 tempfile wave_3_demog
 g first = . 
 
-clonevar IDind = ID
-clonevar birth_year = ba002_1
-clonevar birth_month = ba002_2
-clonevar birth_day = ba002_3
+
+***************************************
+**# Birth date: Year, Month, and Day***
+***************************************
 clonevar calender_type = ba003
+
+gen str8 birth_date_l = string(ba002_1,"%04.0f") + ///
+                      string(ba002_2,"%02.0f") + ///
+                      string(ba002_3,"%02.0f")
+
+g xx = birth_date_l if calender_type == 1
+replace birth_date_l = "" if calender_type == 1
+
+lunar2solar birth_date, leap matfile($lunar2solar) gen(birth_date_solar)
+replace birth_date_solar = xx if missing(birth_date_solar)
+drop xx birth_date_l calender_type
+
+gen birth_year  = real(substr(birth_date_solar, 1, 4))
+gen birth_month = real(substr(birth_date_solar, 5, 2))
+gen birth_day   = real(substr(birth_date_solar, 7, 2))
+
+foreach i in birth_month birth_day{
+	replace `i' = . if `i' == 0 
+}
+
+
+***************************************
+**# Clone variables
+***************************************
+clonevar IDind = ID
 clonevar birth_place = bb001
 
 g year = 2015
@@ -407,19 +326,42 @@ keep first-last
 drop first last
 save `wave_3_demog'
 
-
+*********************************************************************
 **# *----------1.4: Wave 2018
+*********************************************************************
+
 
 use $wave_4_demog, clear
 tempfile wave_4_demog
 g first = . 
+***************************************
+**# Birth date: Year, Month, and Day***
+***************************************
+clonevar calender_type = ba003
+
+gen str8 birth_date_l = string(ba002_1,"%04.0f") + ///
+                      string(ba002_2,"%02.0f") + ///
+                      string(ba002_3,"%02.0f")
+
+g xx = birth_date_l if calender_type == 1
+replace birth_date_l = "" if calender_type == 1
+
+lunar2solar birth_date, leap matfile($lunar2solar) gen(birth_date_solar)
+replace birth_date_solar = xx if missing(birth_date_solar)
+drop xx birth_date_l calender_type
+
+gen birth_year  = real(substr(birth_date_solar, 1, 4))
+gen birth_month = real(substr(birth_date_solar, 5, 2))
+gen birth_day   = real(substr(birth_date_solar, 7, 2))
+
+foreach i in birth_month birth_day{
+	replace `i' = . if `i' == 0 
+}
+
+
 
 clonevar IDind = ID
 clonevar chinese_zodiac = ba001 
-clonevar birth_year = ba002_1
-clonevar birth_month = ba002_2
-clonevar birth_day = ba002_3
-clonevar calender_type = ba003
 clonevar birth_place = bb001
 
 g year = 2018
@@ -430,18 +372,32 @@ keep first-last
 drop first last
 save `wave_4_demog'
 
-**# *----------1.5: Wave 2020
 
+
+*********************************************************************
+**# *----------1.5: Wave 2020
+*********************************************************************
 use $wave_5_demog, clear
 tempfile wave_5_demog
 g first = . 
 
-clonevar IDind = ID
-clonevar chinese_zodiac = ba001 
-clonevar birth_year = zrbirthyear
+***************************************
+**# Birth date: Year, Month, and Day***
+***************************************
+clonevar birth_year = ba003_1
 clonevar birth_month = ba003_2
 clonevar birth_day = ba003_3
 
+local missing birth_year birth_month birth_day
+foreach i in `missing'{
+	replace `i' = . if `i' < 0 
+}
+
+***************************************
+**# Clone variables
+***************************************
+clonevar IDind = ID
+clonevar chinese_zodiac = ba001 
 
 
 g year = 2020
@@ -466,11 +422,15 @@ append using `wave_5_demog'
 
 
 **# *----------2.0: Cleaning Demographic Background
-**# *----------2.1: Luner to Solar birth date
+**# *----------2.1: Birth date 
+*## "_n-1" 就是"上一行"。"_n+1"，那就是"下一行"的值
 
-
-
-
+foreach var in birth_year birth_month birth_day{
+	bysort IDind (year): gen first_`var' = `var' if `var' < .
+	bysort IDind (year): replace first_`var' = first_`var'[_n-1] if missing(first_`var')
+	replace `var' = first_`var' if missing(`var')
+	drop first_`var'
+}
 
 
 exit 
@@ -480,7 +440,7 @@ exit
 cd "/Users/ynbsztl/Library/CloudStorage/OneDrive-Personal/charls_data/Dofiles"
 git add .
 git status
-git commit -m 'version_1.4_wave1_birthdate'
+git commit -m 'version_1.5_birth_date'
 git push
 
 
